@@ -8,8 +8,18 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import sys
 import os
+from android.permissions import request_permissions, Permission
 
-os.environ['KIVY_GL_BACKEND'] = 'angle_sdl2'
+request_permissions([
+    Permission.INTERNET,
+    Permission.READ_EXTERNAL_STORAGE,
+    Permission.WRITE_EXTERNAL_STORAGE
+])
+
+
+if not hasattr(sys, 'getandroidapilevel'):
+    os.environ['KIVY_GL_BACKEND'] = 'angle_sdl2'
+
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
@@ -27,6 +37,9 @@ from kivy.uix.recycleview import RecycleView
 from kivy.clock import Clock, mainthread
 from kivy.core.window import Window
 from kivy.utils import platform
+from android.storage import app_storage_path
+DB_ADI = os.path.join(app_storage_path(), "finans_ultimate_v19.db")
+
 
 # --- AYARLAR ---
 DB_ADI = "finans_ultimate_v19.db"
@@ -583,6 +596,10 @@ class MainScreen(Screen):
     renk_durum = ListProperty([0,0,0,1])
 
     def __init__(self, **kwargs):
+        Clock.schedule_once(lambda dt: threading.Thread(
+        target=self.doviz_motoru, daemon=True
+        ).start(), 1)
+
         super().__init__(**kwargs)
         self.calisiyor = True
         self.veritabani_kur()
@@ -819,4 +836,5 @@ class FinansApp(App):
         return sm
 
 if __name__ == "__main__":
+
     FinansApp().run()
