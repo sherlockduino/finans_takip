@@ -2,7 +2,7 @@ import sqlite3
 import csv
 import threading
 import time
-# requests'i buradan kaldırdık, aşağıda güvenli çağıracağız
+# requests'i güvenli modda aşağıda çağıracağız
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import sys
@@ -32,11 +32,11 @@ def get_db_path():
         try:
             from android.storage import app_storage_path
             storage_path = app_storage_path()
-            return os.path.join(storage_path, "finans_ultimate_v20.db")
+            return os.path.join(storage_path, "finans_ultimate_v21.db")
         except:
-            return "finans_ultimate_v20.db"
+            return "finans_ultimate_v21.db"
     else:
-        return "finans_ultimate_v20.db"
+        return "finans_ultimate_v21.db"
 
 # --- AYARLAR ---
 RENK_BG = (0.95, 0.96, 0.96, 1)      
@@ -288,7 +288,8 @@ KV = """
                                 orientation: 'vertical'
                                 padding: 5
                                 canvas.before:
-                                    Color: rgba: 0.9, 0.9, 0.9, 1
+                                    Color:
+                                        rgba: 0.9, 0.9, 0.9, 1
                                     Rectangle: 
                                         pos: self.pos
                                         size: self.size
@@ -614,7 +615,6 @@ class LoginScreen(Screen):
             cur = conn.cursor()
             cur.execute("CREATE TABLE IF NOT EXISTS kullanicilar (id INTEGER PRIMARY KEY, kadi TEXT UNIQUE, sifre TEXT)")
             
-            # Default admin kontrolü
             cur.execute("SELECT count(*) FROM kullanicilar")
             if cur.fetchone()[0] == 0:
                 cur.execute("INSERT INTO kullanicilar (kadi, sifre) VALUES ('admin', '1234')")
@@ -671,7 +671,6 @@ class MainScreen(Screen):
     def baslat(self, dt):
         self.veritabani_kur()
         self.tur_degisti("Gider")
-        # Döviz motorunu başlat (hata varsa bile durmaz)
         threading.Thread(target=self.doviz_motoru, daemon=True).start()
 
     def veritabani_kur(self):
@@ -871,7 +870,6 @@ class MainScreen(Screen):
         popup.open()
 
     def doviz_motoru(self):
-        # BURASI KRİTİK: Requests burada import ediliyor ve hata yakalanıyor
         try:
             import requests
         except ImportError:
@@ -892,7 +890,6 @@ class MainScreen(Screen):
 
                 self.ui_doviz_guncelle(usd, eur, altin, gumus)
             except Exception as e:
-                # İnternet yoksa sessiz kal
                 pass
             
             time.sleep(60)
