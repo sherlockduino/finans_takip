@@ -2,13 +2,13 @@ import sqlite3
 import csv
 import threading
 import time
-import requests
+# requests'i buradan kaldırdık, aşağıda güvenli çağıracağız
 import xml.etree.ElementTree as ET
 from datetime import datetime
 import sys
 import os
 
-# --- GEREKLİ KİVY KÜTÜPHANELERİ ---
+# --- KIVY IMPORTLARI ---
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
@@ -23,29 +23,26 @@ from kivy.clock import Clock, mainthread
 from kivy.core.window import Window
 from kivy.utils import platform
 
-# Platform kontrolü (Android mi PC mi?)
+# Platform kontrolü
 IS_ANDROID = platform == "android"
 
-# --- VERİTABANI YOLU AYARLAMA ---
-# Veritabanı yolunu global değil, dinamik belirleyeceğiz
+# --- DB YOLU ---
 def get_db_path():
     if IS_ANDROID:
-        from android.storage import app_storage_path
-        storage_path = app_storage_path()
-        return os.path.join(storage_path, "finans_ultimate_v19.db")
+        try:
+            from android.storage import app_storage_path
+            storage_path = app_storage_path()
+            return os.path.join(storage_path, "finans_ultimate_v20.db")
+        except:
+            return "finans_ultimate_v20.db"
     else:
-        return "finans_ultimate_v19.db"
+        return "finans_ultimate_v20.db"
 
 # --- AYARLAR ---
 RENK_BG = (0.95, 0.96, 0.96, 1)      
-RENK_MAVI = (0.23, 0.51, 0.96, 1)    
-RENK_YESIL = (0.06, 0.72, 0.50, 1)   
-RENK_KIRMIZI = (0.93, 0.26, 0.26, 1) 
-RENK_TURUNCU = (0.96, 0.62, 0.04, 1)  
-
 Window.clearcolor = RENK_BG
 
-# --- KV LANGUAGE (TASARIM KATMANI) ---
+# --- KV LANGUAGE ---
 KV = """
 #:import hex kivy.utils.get_color_from_hex
 
@@ -185,6 +182,7 @@ KV = """
     BoxLayout:
         orientation: 'vertical'
         
+        # HEADER
         BoxLayout:
             orientation: 'vertical'
             size_hint_y: None
@@ -605,32 +603,34 @@ class IslemRow(BoxLayout, RecycleView):
 
 class LoginScreen(Screen):
     def db_baglan(self):
-        # Hata önleyici: DB yolunu her seferinde taze al
         return sqlite3.connect(get_db_path())
 
     def giris_yap(self):
         kadi = self.ids.kadi.text
         sifre = self.ids.sifre.text
         
-        conn = self.db_baglan()
-        cur = conn.cursor()
-        cur.execute("CREATE TABLE IF NOT EXISTS kullanicilar (id INTEGER PRIMARY KEY, kadi TEXT UNIQUE, sifre TEXT)")
-        
-        # Test kullanıcısı oluştur (İlk açılış için)
-        cur.execute("SELECT count(*) FROM kullanicilar")
-        if cur.fetchone()[0] == 0:
-            cur.execute("INSERT INTO kullanicilar (kadi, sifre) VALUES ('admin', '1234')")
-            conn.commit()
+        try:
+            conn = self.db_baglan()
+            cur = conn.cursor()
+            cur.execute("CREATE TABLE IF NOT EXISTS kullanicilar (id INTEGER PRIMARY KEY, kadi TEXT UNIQUE, sifre TEXT)")
             
-        cur.execute("SELECT * FROM kullanicilar WHERE kadi=? AND sifre=?", (kadi, sifre))
-        user = cur.fetchone()
-        conn.close()
-        
-        if user:
-            self.manager.current = 'main'
-            self.manager.get_screen('main').dashboard_guncelle()
-        else:
-            show_popup("Hata", "Kullanıcı adı veya şifre yanlış!\n(Default: admin / 1234)")
+            # Default admin kontrolü
+            cur.execute("SELECT count(*) FROM kullanicilar")
+            if cur.fetchone()[0] == 0:
+                cur.execute("INSERT INTO kullanicilar (kadi, sifre) VALUES ('admin', '1234')")
+                conn.commit()
+                
+            cur.execute("SELECT * FROM kullanicilar WHERE kadi=? AND sifre=?", (kadi, sifre))
+            user = cur.fetchone()
+            conn.close()
+            
+            if user:
+                self.manager.current = 'main'
+                self.manager.get_screen('main').dashboard_guncelle()
+            else:
+                show_popup("Hata", "Kullanıcı adı veya şifre yanlış!\n(Default: admin / 1234)")
+        except Exception as e:
+            show_popup("DB Hatası", str(e))
 
     def kayit_ol(self):
         kadi = self.ids.kadi.text
@@ -666,34 +666,37 @@ class MainScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.calisiyor = True
-        # Hemen başlatma, UI çizilince başlat
         Clock.schedule_once(self.baslat, 1)
 
     def baslat(self, dt):
         self.veritabani_kur()
         self.tur_degisti("Gider")
+        # Döviz motorunu başlat (hata varsa bile durmaz)
         threading.Thread(target=self.doviz_motoru, daemon=True).start()
 
     def veritabani_kur(self):
-        self.conn = sqlite3.connect(get_db_path(), check_same_thread=False)
-        self.cursor = self.conn.cursor()
-        self.cursor.execute("""
-            CREATE TABLE IF NOT EXISTS islemler (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                tarih TEXT,
-                vade_tarihi TEXT,
-                tur TEXT,
-                hesap_turu TEXT,
-                kategori TEXT,
-                tutar REAL,
-                para_birimi TEXT,
-                aciklama TEXT,
-                durum TEXT DEFAULT 'Aktif',
-                tekrar_eden INTEGER DEFAULT 0
-            )
-        """)
-        self.conn.commit()
-        self.dashboard_guncelle()
+        try:
+            self.conn = sqlite3.connect(get_db_path(), check_same_thread=False)
+            self.cursor = self.conn.cursor()
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS islemler (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    tarih TEXT,
+                    vade_tarihi TEXT,
+                    tur TEXT,
+                    hesap_turu TEXT,
+                    kategori TEXT,
+                    tutar REAL,
+                    para_birimi TEXT,
+                    aciklama TEXT,
+                    durum TEXT DEFAULT 'Aktif',
+                    tekrar_eden INTEGER DEFAULT 0
+                )
+            """)
+            self.conn.commit()
+            self.dashboard_guncelle()
+        except Exception as e:
+            print("DB Kurulum Hatası:", e)
 
     def bugun_tarih(self):
         return datetime.now().strftime("%d/%m/%Y")
@@ -727,19 +730,22 @@ class MainScreen(Screen):
         try:
             tutar = float(tutar_str)
         except ValueError:
-            show_popup("Hata", "Tutar geçerli bir sayı olmalıdır.")
+            show_popup("Hata", "Tutar sayı olmalıdır.")
             return
 
-        self.cursor.execute("""
-            INSERT INTO islemler (tarih, tur, kategori, tutar, para_birimi, aciklama) 
-            VALUES (?,?,?,?,'TL',?)
-        """, (tarih, tur, kat, tutar, aciklama))
-        self.conn.commit()
-        
-        show_popup("Başarılı", "İşlem Kaydedildi.")
-        self.ids.ti_tutar.text = ""
-        self.ids.ti_desc.text = ""
-        self.sayfa_degis('dashboard')
+        try:
+            self.cursor.execute("""
+                INSERT INTO islemler (tarih, tur, kategori, tutar, para_birimi, aciklama) 
+                VALUES (?,?,?,?,'TL',?)
+            """, (tarih, tur, kat, tutar, aciklama))
+            self.conn.commit()
+            
+            show_popup("Başarılı", "İşlem Kaydedildi.")
+            self.ids.ti_tutar.text = ""
+            self.ids.ti_desc.text = ""
+            self.sayfa_degis('dashboard')
+        except Exception as e:
+            show_popup("Kayıt Hatası", str(e))
 
     def dashboard_guncelle(self):
         try:
@@ -765,61 +771,73 @@ class MainScreen(Screen):
                 self.renk_durum = RENK_KIRMIZI
 
             self.grafik_ciz(gider)
-        except Exception as e:
-            print("Dashboard hata:", e)
+        except:
+            pass
 
     def grafik_ciz(self, toplam_gider):
-        chart_area = self.ids.chart_area
-        chart_area.clear_widgets()
-        
-        self.cursor.execute("SELECT kategori, SUM(tutar) FROM islemler WHERE tur='Gider' GROUP BY kategori ORDER BY SUM(tutar) DESC LIMIT 5")
-        rows = self.cursor.fetchall()
-        
-        from kivy.factory import Factory
-        colors = [RENK_MAVI, RENK_YESIL, RENK_TURUNCU, RENK_KIRMIZI, (0.5, 0, 0.5, 1)]
-        
-        for i, (kat, tutar) in enumerate(rows):
-            oran = (tutar / toplam_gider) if toplam_gider > 0 else 0
-            bar = Factory.BarChartItem()
-            bar.kategori = kat
-            bar.tutar = f"{tutar:.0f}"
-            bar.oran = oran
-            bar.renk = colors[i % len(colors)]
-            chart_area.add_widget(bar)
+        try:
+            chart_area = self.ids.chart_area
+            chart_area.clear_widgets()
+            
+            self.cursor.execute("SELECT kategori, SUM(tutar) FROM islemler WHERE tur='Gider' GROUP BY kategori ORDER BY SUM(tutar) DESC LIMIT 5")
+            rows = self.cursor.fetchall()
+            
+            from kivy.factory import Factory
+            colors = [RENK_MAVI, RENK_YESIL, RENK_TURUNCU, RENK_KIRMIZI, (0.5, 0, 0.5, 1)]
+            
+            for i, (kat, tutar) in enumerate(rows):
+                oran = (tutar / toplam_gider) if toplam_gider > 0 else 0
+                bar = Factory.BarChartItem()
+                bar.kategori = kat
+                bar.tutar = f"{tutar:.0f}"
+                bar.oran = oran
+                bar.renk = colors[i % len(colors)]
+                chart_area.add_widget(bar)
+        except:
+            pass
 
     def arama_yap(self):
-        keyword = self.ids.search_box.text.lower()
-        self.cursor.execute("SELECT id, tarih, tur, kategori, tutar FROM islemler ORDER BY id DESC")
-        rows = self.cursor.fetchall()
-        
-        data_list = []
-        renk_map = {"Gelir": RENK_YESIL, "Gider": RENK_KIRMIZI, "Borç": RENK_MAVI}
-        
-        for i, r in enumerate(rows):
-            full_str = f"{r[1]} {r[2]} {r[3]}".lower()
-            if keyword in full_str:
-                data_list.append({
-                    'id': r[0],
-                    'tarih': r[1],
-                    'tur': r[2],
-                    'kategori': r[3],
-                    'tutar': f"{r[4]:.2f} ₺",
-                    'renk': renk_map.get(r[2], (0,0,0,1)),
-                    'index': i
-                })
-        
-        self.ids.rv_liste.data = data_list
+        try:
+            keyword = self.ids.search_box.text.lower()
+            self.cursor.execute("SELECT id, tarih, tur, kategori, tutar FROM islemler ORDER BY id DESC")
+            rows = self.cursor.fetchall()
+            
+            data_list = []
+            renk_map = {"Gelir": RENK_YESIL, "Gider": RENK_KIRMIZI, "Borç": RENK_MAVI}
+            
+            for i, r in enumerate(rows):
+                full_str = f"{r[1]} {r[2]} {r[3]}".lower()
+                if keyword in full_str:
+                    data_list.append({
+                        'id': r[0],
+                        'tarih': r[1],
+                        'tur': r[2],
+                        'kategori': r[3],
+                        'tutar': f"{r[4]:.2f} ₺",
+                        'renk': renk_map.get(r[2], (0,0,0,1)),
+                        'index': i
+                    })
+            
+            self.ids.rv_liste.data = data_list
+        except:
+            pass
 
     def islem_sil(self, islem_id):
-        self.cursor.execute("DELETE FROM islemler WHERE id=?", (islem_id,))
-        self.conn.commit()
-        self.arama_yap()
+        try:
+            self.cursor.execute("DELETE FROM islemler WHERE id=?", (islem_id,))
+            self.conn.commit()
+            self.arama_yap()
+        except Exception as e:
+            show_popup("Hata", str(e))
 
     def excel_aktar(self):
         path = "finans_raporu.csv"
         if IS_ANDROID:
-            from android.storage import app_storage_path
-            path = os.path.join(app_storage_path(), "finans_raporu.csv")
+            try:
+                from android.storage import app_storage_path
+                path = os.path.join(app_storage_path(), "finans_raporu.csv")
+            except:
+                pass
             
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
@@ -853,9 +871,15 @@ class MainScreen(Screen):
         popup.open()
 
     def doviz_motoru(self):
+        # BURASI KRİTİK: Requests burada import ediliyor ve hata yakalanıyor
+        try:
+            import requests
+        except ImportError:
+            self.ui_doviz_guncelle("Hata", "Lib", "Yok", "!")
+            return
+
         while self.calisiyor:
             try:
-                # TCMB ve API'den veri çekme (SSL GEREKTİRİR)
                 r_xml = requests.get("https://www.tcmb.gov.tr/kurlar/today.xml", timeout=5)
                 tree = ET.fromstring(r_xml.content)
                 usd = tree.find("./Currency[@CurrencyCode='USD']/ForexSelling").text
@@ -868,8 +892,7 @@ class MainScreen(Screen):
 
                 self.ui_doviz_guncelle(usd, eur, altin, gumus)
             except Exception as e:
-                # Hata olsa bile programı çökertme, sadece bekle
-                print("Doviz hatasi:", e)
+                # İnternet yoksa sessiz kal
                 pass
             
             time.sleep(60)
@@ -894,14 +917,16 @@ class FinansApp(App):
         return sm
 
     def on_start(self):
-        # KRİTİK DÜZELTME: İzinleri uygulama açıldıktan SONRA iste
         if IS_ANDROID:
-            from android.permissions import request_permissions, Permission
-            request_permissions([
-                Permission.INTERNET,
-                Permission.READ_EXTERNAL_STORAGE,
-                Permission.WRITE_EXTERNAL_STORAGE
-            ])
+            try:
+                from android.permissions import request_permissions, Permission
+                request_permissions([
+                    Permission.INTERNET,
+                    Permission.READ_EXTERNAL_STORAGE,
+                    Permission.WRITE_EXTERNAL_STORAGE
+                ])
+            except:
+                pass
 
 if __name__ == "__main__":
     FinansApp().run()
