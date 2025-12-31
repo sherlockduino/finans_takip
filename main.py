@@ -38,6 +38,7 @@ from kivy.clock import Clock, mainthread
 from kivy.core.window import Window
 from kivy.utils import platform
 from android.storage import app_storage_path
+IS_ANDROID = platform == "android"
 DB_ADI = os.path.join(app_storage_path(), "finans_ultimate_v19.db")
 
 
@@ -51,8 +52,7 @@ RENK_YESIL = (0.06, 0.72, 0.50, 1)   # #10B981
 RENK_KIRMIZI = (0.93, 0.26, 0.26, 1) # #EF4444
 RENK_TURUNCU = (0.96, 0.62, 0.04, 1)  # #F59E0B
 
-if platform !='android':
-    Window.size = (900, 600)
+
     
 Window.clearcolor = RENK_BG
 
@@ -91,24 +91,24 @@ KV = """
     Label:
         text: root.tarih
         color: 0,0,0,1
-        size_hint_x: 0.2
+        size_hint_x: 0.25
     Label:
         text: root.tur
         color: root.renk
         bold: True
-        size_hint_x: 0.15
+        size_hint_x: 0.25
     Label:
         text: root.kategori
         color: 0,0,0,1
-        size_hint_x: 0.2
+        size_hint_x: 0.25
     Label:
         text: root.tutar
         color: 0,0,0,1
         bold: True
-        size_hint_x: 0.2
+        size_hint_x: 0.25
     Button:
         text: "Sil"
-        size_hint_x: 0.1
+        size_hint_x: 0.25
         background_color: (1, 0, 0, 0.8)
         on_release: root.sil_tetikle()
 
@@ -127,7 +127,7 @@ KV = """
         
         Label:
             text: "💎 ULTIMATE ERP"
-            font_size: '32sp'
+            font_size: '20sp'
             bold: True
             size_hint_y: None
             height: 80
@@ -171,7 +171,7 @@ KV = """
         # SIDEBAR
         BoxLayout:
             orientation: 'vertical'
-            size_hint_x: None
+            size_hint_x: 0.25
             width: 200
             canvas.before:
                 Color:
@@ -224,22 +224,22 @@ KV = """
                         size: self.size
                 Label:
                     text: root.doviz_usd
-                    font_size: '12sp'
+                    font_size: '20sp'
                     halign: 'left'
                     text_size: self.size
                 Label:
                     text: root.doviz_eur
-                    font_size: '12sp'
+                    font_size: '20sp'
                     halign: 'left'
                     text_size: self.size
                 Label:
                     text: root.doviz_altin
-                    font_size: '12sp'
+                    font_size: '20sp'
                     halign: 'left'
                     text_size: self.size
                 Label:
                     text: root.doviz_gumus
-                    font_size: '12sp'
+                    font_size: '20sp'
                     halign: 'left'
                     text_size: self.size
 
@@ -255,11 +255,13 @@ KV = """
             id: sm_content
             
             Screen:
-                name: 'dashboard'
+                ScrollView:
+                    do_scroll_x: False
                 BoxLayout:
                     orientation: 'vertical'
-                    padding: 20
-                    spacing: 10
+                    size_hint_y: None
+                    height: self.minimum_height
+
                     
                     Label:
                         text: "Finansal Özet"
@@ -409,11 +411,11 @@ KV = """
                             on_text_validate: root.arama_yap()
                         Button:
                             text: "Ara"
-                            size_hint_x: 0.2
+                            size_hint_x: 0.25
                             on_release: root.arama_yap()
                         Button:
                             text: "Excel Aktar"
-                            size_hint_x: 0.3
+                            size_hint_x: 0.25
                             background_color: (0.1, 0.6, 0.2, 1)
                             on_release: root.excel_aktar()
 
@@ -430,23 +432,23 @@ KV = """
                         Label:
                             text: "Tarih"
                             color: 0,0,0,1
-                            size_hint_x: 0.2
+                            size_hint_x: 0.25
                         Label:
                             text: "Tür"
                             color: 0,0,0,1
-                            size_hint_x: 0.15
+                            size_hint_x: 0.25
                         Label:
                             text: "Kategori"
                             color: 0,0,0,1
-                            size_hint_x: 0.2
+                            size_hint_x: 0.25
                         Label:
                             text: "Tutar"
                             color: 0,0,0,1
-                            size_hint_x: 0.2
+                            size_hint_x: 0.25
                         Label:
                             text: "İşlem"
                             color: 0,0,0,1
-                            size_hint_x: 0.1
+                            size_hint_x: 0.25
                     
                     # LİSTE
                     RecycleView:
@@ -480,7 +482,7 @@ KV = """
     Label:
         text: root.baslik
         color: 0.5, 0.5, 0.5, 1
-        font_size: '12sp'
+        font_size: '20sp'
         halign: 'left'
         text_size: self.size
     Label:
@@ -500,13 +502,13 @@ KV = """
     height: 30
     Label:
         text: root.kategori
-        size_hint_x: 0.3
+        size_hint_x: 0.25
         color: 0,0,0,1
         halign: 'right'
         valign: 'middle'
         text_size: self.size
     BoxLayout:
-        size_hint_x: 0.7
+        size_hint_x: 0.25
         padding: [10, 5, 10, 5]
         canvas:
             Color:
