@@ -10,12 +10,12 @@ import sys
 import os
 from android.permissions import request_permissions, Permission
 
+# İzinleri iste
 request_permissions([
     Permission.INTERNET,
     Permission.READ_EXTERNAL_STORAGE,
     Permission.WRITE_EXTERNAL_STORAGE
 ])
-
 
 if not hasattr(sys, 'getandroidapilevel'):
     os.environ['KIVY_GL_BACKEND'] = 'angle_sdl2'
@@ -29,31 +29,28 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.recycleview import RecycleView
-from kivy.uix.recycleview.views import RecycleDataViewBehavior
-from kivy.uix.recycleboxlayout import RecycleBoxLayout
-from kivy.properties import BooleanProperty, ListProperty, StringProperty, ObjectProperty
-from kivy.uix.behaviors import FocusBehavior
-from kivy.uix.recycleview import RecycleView
+from kivy.properties import BooleanProperty, ListProperty, StringProperty
 from kivy.clock import Clock, mainthread
 from kivy.core.window import Window
 from kivy.utils import platform
 from android.storage import app_storage_path
-IS_ANDROID = platform == "android"
-DB_ADI = os.path.join(app_storage_path(), "finans_ultimate_v19.db")
 
+IS_ANDROID = platform == "android"
+# Android'de yazılabilir alan için yol
+if IS_ANDROID:
+    storage_path = app_storage_path()
+    DB_ADI = os.path.join(storage_path, "finans_ultimate_v19.db")
+else:
+    DB_ADI = "finans_ultimate_v19.db"
 
 # --- AYARLAR ---
-DB_ADI = "finans_ultimate_v19.db"
-# Renkler (R, G, B, A) - 0-1 aralığında
-RENK_SIDEBAR = (0.26, 0.37, 0.52, 1)  # #445F85
-RENK_BG = (0.95, 0.96, 0.96, 1)      # #F3F4F6
-RENK_MAVI = (0.23, 0.51, 0.96, 1)    # #3B82F6
-RENK_YESIL = (0.06, 0.72, 0.50, 1)   # #10B981
-RENK_KIRMIZI = (0.93, 0.26, 0.26, 1) # #EF4444
-RENK_TURUNCU = (0.96, 0.62, 0.04, 1)  # #F59E0B
+RENK_SIDEBAR = (0.26, 0.37, 0.52, 1)  
+RENK_BG = (0.95, 0.96, 0.96, 1)      
+RENK_MAVI = (0.23, 0.51, 0.96, 1)    
+RENK_YESIL = (0.06, 0.72, 0.50, 1)   
+RENK_KIRMIZI = (0.93, 0.26, 0.26, 1) 
+RENK_TURUNCU = (0.96, 0.62, 0.04, 1)  
 
-
-    
 Window.clearcolor = RENK_BG
 
 # --- KV LANGUAGE (TASARIM KATMANI) ---
@@ -61,63 +58,84 @@ KV = """
 #:import hex kivy.utils.get_color_from_hex
 
 <CustomPopup>:
-    size_hint: .8, .4
+    size_hint: 0.9, 0.4
     auto_dismiss: False
     title: root.title_text
     BoxLayout:
         orientation: 'vertical'
-        padding: 10
+        padding: 15
+        spacing: 10
         Label:
             text: root.message
             text_size: self.width, None
             size_hint_y: None
             height: self.texture_size[1] + 20
             halign: 'center'
+            valign: 'middle'
         Button:
             text: "Tamam"
             size_hint_y: None
-            height: 40
+            height: dp(50)
+            background_color: (0.23, 0.51, 0.96, 1)
             on_release: root.dismiss()
 
 # --- TABLO SATIR GÖRÜNÜMÜ ---
 <IslemRow>:
     orientation: 'horizontal'
+    size_hint_y: None
+    height: dp(60)
+    spacing: 5
+    padding: 5
     canvas.before:
         Color:
-            rgba: (1, 1, 1, 1) if self.index % 2 == 0 else (0.9, 0.9, 0.9, 1)
+            rgba: (1, 1, 1, 1) if self.index % 2 == 0 else (0.92, 0.92, 0.92, 1)
         Rectangle:
             pos: self.pos
             size: self.size
-    Label:
-        text: root.tarih
-        color: 0,0,0,1
-        size_hint_x: 0.25
-    Label:
-        text: root.tur
-        color: root.renk
-        bold: True
-        size_hint_x: 0.25
-    Label:
-        text: root.kategori
-        color: 0,0,0,1
-        size_hint_x: 0.25
+    
+    BoxLayout:
+        orientation: 'vertical'
+        size_hint_x: 0.6
+        Label:
+            text: root.kategori
+            color: 0,0,0,1
+            bold: True
+            font_size: '16sp'
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+        Label:
+            text: root.tarih
+            color: 0.4, 0.4, 0.4, 1
+            font_size: '12sp'
+            text_size: self.size
+            halign: 'left'
+            valign: 'middle'
+            
     Label:
         text: root.tutar
-        color: 0,0,0,1
+        color: root.renk
         bold: True
-        size_hint_x: 0.25
+        font_size: '16sp'
+        size_hint_x: 0.3
+        text_size: self.size
+        halign: 'right'
+        valign: 'middle'
+
     Button:
         text: "Sil"
-        size_hint_x: 0.25
-        background_color: (1, 0, 0, 0.8)
+        size_hint_x: None
+        width: dp(50)
+        font_size: '12sp'
+        background_color: (0.9, 0.2, 0.2, 1)
         on_release: root.sil_tetikle()
 
 # --- GİRİŞ EKRANI ---
 <LoginScreen>:
     BoxLayout:
         orientation: 'vertical'
-        padding: 50
-        spacing: 15
+        padding: dp(30)
+        spacing: dp(20)
         canvas.before:
             Color:
                 rgba: (0.26, 0.37, 0.52, 1)
@@ -125,19 +143,23 @@ KV = """
                 pos: self.pos
                 size: self.size
         
+        Widget: # Üst boşluk
+            size_hint_y: 0.2
+
         Label:
             text: "💎 ULTIMATE ERP"
-            font_size: '20sp'
+            font_size: '26sp'
             bold: True
             size_hint_y: None
-            height: 80
+            height: dp(60)
         
         TextInput:
             id: kadi
             hint_text: "Kullanıcı Adı"
             multiline: False
             size_hint_y: None
-            height: 40
+            height: dp(50)
+            padding_y: [dp(15), dp(15)]
             
         TextInput:
             id: sifre
@@ -145,13 +167,14 @@ KV = """
             password: True
             multiline: False
             size_hint_y: None
-            height: 40
+            height: dp(50)
+            padding_y: [dp(15), dp(15)]
             
         Button:
             text: "GİRİŞ YAP"
             background_color: (0.23, 0.51, 0.96, 1)
             size_hint_y: None
-            height: 50
+            height: dp(55)
             bold: True
             on_release: root.giris_yap()
             
@@ -159,20 +182,22 @@ KV = """
             text: "KAYIT OL"
             background_color: (0.06, 0.72, 0.50, 1)
             size_hint_y: None
-            height: 50
+            height: dp(55)
             bold: True
             on_release: root.kayit_ol()
+            
+        Widget: # Alt boşluk
 
 # --- ANA UYGULAMA EKRANI ---
 <MainScreen>:
     BoxLayout:
-        orientation: 'horizontal'
+        orientation: 'vertical' # DİKEY YERLEŞİM (MOBİL İÇİN KRİTİK)
         
-        # SIDEBAR
+        # --- ÜST BİLGİ ÇUBUĞU (HEADER) ---
         BoxLayout:
             orientation: 'vertical'
-            size_hint_x: 0.25
-            width: 200
+            size_hint_y: None
+            height: dp(90)
             canvas.before:
                 Color:
                     rgba: (0.26, 0.37, 0.52, 1)
@@ -180,249 +205,276 @@ KV = """
                     pos: self.pos
                     size: self.size
             
-            Label:
-                text: "Ultimate ERP"
-                font_size: '20sp'
-                bold: True
-                size_hint_y: None
-                height: 60
-            
-            Button:
-                text: "📊 Genel Bakış"
-                background_normal: ''
-                background_color: (0.26, 0.37, 0.52, 1)
-                on_release: root.sayfa_degis('dashboard')
-            Button:
-                text: "➕ İşlem Ekle"
-                background_normal: ''
-                background_color: (0.26, 0.37, 0.52, 1)
-                on_release: root.sayfa_degis('ekle')
-            Button:
-                text: "📄 Raporlar"
-                background_normal: ''
-                background_color: (0.26, 0.37, 0.52, 1)
-                on_release: root.sayfa_degis('rapor')
-            Button:
-                text: "⚙️ Yönetici"
-                background_normal: ''
-                background_color: (0.26, 0.37, 0.52, 1)
-                on_release: root.admin_popup_ac()
-            
-            Widget: # Boşluk
-
-            # Döviz Bilgisi
+            # Başlık ve Admin Butonu
             BoxLayout:
-                orientation: 'vertical'
-                size_hint_y: None
-                height: 120
-                padding: 10
+                size_hint_y: 0.5
+                padding: [10, 0]
+                Label:
+                    text: "Ultimate ERP"
+                    font_size: '18sp'
+                    bold: True
+                    halign: 'left'
+                    text_size: self.size
+                    valign: 'middle'
+                Button:
+                    text: "⚙️"
+                    size_hint_x: None
+                    width: dp(40)
+                    background_color: 0,0,0,0
+                    on_release: root.admin_popup_ac()
+                Button:
+                    text: "Çıkış"
+                    size_hint_x: None
+                    width: dp(60)
+                    color: 1, 0.5, 0.5, 1
+                    background_color: 0,0,0,0
+                    on_release: app.stop()
+
+            # Döviz Kayan Yazı veya Grid
+            GridLayout:
+                cols: 4
+                size_hint_y: 0.5
                 canvas.before:
                     Color:
                         rgba: (0.2, 0.25, 0.3, 1)
                     Rectangle:
                         pos: self.pos
                         size: self.size
+                
                 Label:
                     text: root.doviz_usd
-                    font_size: '20sp'
-                    halign: 'left'
-                    text_size: self.size
+                    font_size: '12sp'
                 Label:
                     text: root.doviz_eur
-                    font_size: '20sp'
-                    halign: 'left'
-                    text_size: self.size
+                    font_size: '12sp'
                 Label:
                     text: root.doviz_altin
-                    font_size: '20sp'
-                    halign: 'left'
-                    text_size: self.size
+                    font_size: '12sp'
                 Label:
                     text: root.doviz_gumus
-                    font_size: '20sp'
-                    halign: 'left'
-                    text_size: self.size
+                    font_size: '12sp'
 
-            Button:
-                text: "Çıkış"
-                size_hint_y: None
-                height: 40
-                background_color: (0.9, 0.1, 0.1, 1)
-                on_release: app.stop()
-
-        # İÇERİK ALANI
+        # --- İÇERİK ALANI (ORTA KISIM) ---
         ScreenManager:
             id: sm_content
             
+            # DASHBOARD
             Screen:
+                name: 'dashboard'
                 ScrollView:
                     do_scroll_x: False
-                BoxLayout:
-                    orientation: 'vertical'
-                    size_hint_y: None
-                    height: self.minimum_height
-
-                    
-                    Label:
-                        text: "Finansal Özet"
-                        font_size: '24sp'
-                        color: 0,0,0,1
-                        size_hint_y: None
-                        height: 40
-                        bold: True
-                        halign: 'left'
-                        text_size: self.size
-
-                    # KARTLAR
                     BoxLayout:
+                        orientation: 'vertical'
                         size_hint_y: None
-                        height: 100
-                        spacing: 10
-                        InfoCard:
-                            baslik: "NET DURUM"
-                            deger: root.txt_net
-                            renk: (0.23, 0.51, 0.96, 1)
-                        InfoCard:
-                            baslik: "GELİR"
-                            deger: root.txt_gelir
-                            renk: (0.06, 0.72, 0.50, 1)
-                        InfoCard:
-                            baslik: "GİDER"
-                            deger: root.txt_gider
-                            renk: (0.93, 0.26, 0.26, 1)
+                        height: self.minimum_height
+                        padding: dp(15)
+                        spacing: dp(15)
 
-                    Label:
-                        text: root.txt_durum
-                        color: root.renk_durum
-                        font_size: '18sp'
-                        size_hint_y: None
-                        height: 40
-                        bold: True
+                        Label:
+                            text: "Finansal Özet"
+                            font_size: '22sp'
+                            color: 0,0,0,1
+                            size_hint_y: None
+                            height: dp(40)
+                            bold: True
+                            halign: 'left'
+                            text_size: self.size
 
-                    # BASİT GRAFİK (PROGRESS BARS)
-                    Label:
-                        text: "Harcama Dağılımı (Top 5)"
-                        color: 0.3, 0.3, 0.3, 1
-                        size_hint_y: None
-                        height: 30
-                        halign: 'left'
-                        text_size: self.size
-                    
-                    ScrollView:
+                        # KARTLAR (Grid yapısında)
+                        GridLayout:
+                            cols: 2
+                            spacing: dp(10)
+                            size_hint_y: None
+                            height: dp(180) # Kartların toplam yüksekliği
+                            
+                            InfoCard:
+                                baslik: "NET DURUM"
+                                deger: root.txt_net
+                                renk: (0.23, 0.51, 0.96, 1)
+                            InfoCard:
+                                baslik: "GELİR"
+                                deger: root.txt_gelir
+                                renk: (0.06, 0.72, 0.50, 1)
+                            InfoCard:
+                                baslik: "GİDER"
+                                deger: root.txt_gider
+                                renk: (0.93, 0.26, 0.26, 1)
+                            
+                            BoxLayout:
+                                orientation: 'vertical'
+                                padding: 5
+                                canvas.before:
+                                    Color: rgba: 0.9, 0.9, 0.9, 1
+                                    Rectangle: 
+                                        pos: self.pos
+                                        size: self.size
+                                Label:
+                                    text: root.txt_durum
+                                    color: root.renk_durum
+                                    font_size: '14sp'
+                                    bold: True
+                                    text_size: self.size
+                                    halign: 'center'
+                                    valign: 'middle'
+
+                        # HARCAMA DAĞILIMI
+                        Label:
+                            text: "Harcama Dağılımı (Top 5)"
+                            color: 0.3, 0.3, 0.3, 1
+                            size_hint_y: None
+                            height: dp(30)
+                            halign: 'left'
+                            text_size: self.size
+                        
                         GridLayout:
                             id: chart_area
                             cols: 1
                             size_hint_y: None
                             height: self.minimum_height
-                            spacing: 5
+                            spacing: dp(5)
 
+            # İŞLEM EKLEME SAYFASI
             Screen:
                 name: 'ekle'
-                BoxLayout:
-                    orientation: 'vertical'
-                    padding: 30
-                    spacing: 15
-                    canvas.before:
-                        Color:
-                            rgba: 1,1,1,1
-                        Rectangle:
-                            pos: self.pos
-                            size: self.size
+                ScrollView:
+                    BoxLayout:
+                        orientation: 'vertical'
+                        padding: dp(20)
+                        spacing: dp(15)
+                        size_hint_y: None
+                        height: self.minimum_height
 
-                    Label:
-                        text: "İşlem Ekle / Düzenle"
-                        font_size: '24sp'
-                        color: 0,0,0,1
-                        size_hint_y: None
-                        height: 40
-                    
-                    GridLayout:
-                        cols: 2
-                        spacing: 10
-                        size_hint_y: None
-                        height: 250
+                        Label:
+                            text: "İşlem Ekle / Düzenle"
+                            font_size: '22sp'
+                            color: 0,0,0,1
+                            size_hint_y: None
+                            height: dp(40)
+                            bold: True
                         
                         Label:
-                            text: "Tür:"
-                            color: 0,0,0,1
+                            text: "İşlem Türü"
+                            color: 0.4, 0.4, 0.4, 1
+                            size_hint_y: None
+                            height: dp(20)
+                            text_size: self.size
+                            halign: 'left'
+
                         Spinner:
                             id: sp_tur
                             text: 'Gider'
                             values: ('Gelir', 'Gider', 'Borç', 'Alacak')
                             background_color: (0.23, 0.51, 0.96, 1)
+                            size_hint_y: None
+                            height: dp(50)
                             on_text: root.tur_degisti(self.text)
                         
                         Label:
-                            text: "Kategori:"
-                            color: 0,0,0,1
+                            text: "Kategori"
+                            color: 0.4, 0.4, 0.4, 1
+                            size_hint_y: None
+                            height: dp(20)
+                            text_size: self.size
+                            halign: 'left'
+                        
                         Spinner:
                             id: sp_kat
                             text: 'Seçiniz'
                             values: []
                             background_color: (0.5, 0.5, 0.5, 1)
+                            size_hint_y: None
+                            height: dp(50)
                         
                         Label:
-                            text: "Tutar:"
-                            color: 0,0,0,1
+                            text: "Tutar"
+                            color: 0.4, 0.4, 0.4, 1
+                            size_hint_y: None
+                            height: dp(20)
+                            text_size: self.size
+                            halign: 'left'
+
                         TextInput:
                             id: ti_tutar
                             multiline: False
                             input_filter: 'float'
+                            hint_text: "0.00"
+                            size_hint_y: None
+                            height: dp(50)
                             
                         Label:
-                            text: "Tarih (GG/AA/YYYY):"
-                            color: 0,0,0,1
+                            text: "Tarih (GG/AA/YYYY)"
+                            color: 0.4, 0.4, 0.4, 1
+                            size_hint_y: None
+                            height: dp(20)
+                            text_size: self.size
+                            halign: 'left'
+
                         TextInput:
                             id: ti_tarih
                             text: root.bugun_tarih()
                             multiline: False
+                            size_hint_y: None
+                            height: dp(50)
                             
                         Label:
-                            text: "Açıklama:"
-                            color: 0,0,0,1
+                            text: "Açıklama"
+                            color: 0.4, 0.4, 0.4, 1
+                            size_hint_y: None
+                            height: dp(20)
+                            text_size: self.size
+                            halign: 'left'
+
                         TextInput:
                             id: ti_desc
                             multiline: False
-                    
-                    Button:
-                        text: "KAYDET"
-                        background_color: (0.06, 0.72, 0.50, 1)
-                        size_hint_y: None
-                        height: 50
-                        on_release: root.kaydet()
-                    
-                    Widget: # Boşluk doldurucu
+                            hint_text: "Opsiyonel"
+                            size_hint_y: None
+                            height: dp(50)
+                        
+                        Button:
+                            text: "KAYDET"
+                            background_color: (0.06, 0.72, 0.50, 1)
+                            size_hint_y: None
+                            height: dp(60)
+                            bold: True
+                            on_release: root.kaydet()
+                        
+                        Widget: # Scroll için ekstra boşluk
+                            size_hint_y: None
+                            height: dp(100)
 
+            # RAPOR SAYFASI
             Screen:
                 name: 'rapor'
                 BoxLayout:
                     orientation: 'vertical'
-                    padding: 10
-                    spacing: 5
+                    padding: dp(10)
+                    spacing: dp(10)
                     
                     BoxLayout:
                         size_hint_y: None
-                        height: 40
-                        spacing: 10
+                        height: dp(50)
+                        spacing: dp(10)
                         TextInput:
                             id: search_box
                             hint_text: "Ara..."
                             multiline: False
+                            size_hint_x: 0.6
                             on_text_validate: root.arama_yap()
                         Button:
                             text: "Ara"
-                            size_hint_x: 0.25
+                            size_hint_x: 0.2
                             on_release: root.arama_yap()
                         Button:
-                            text: "Excel Aktar"
-                            size_hint_x: 0.25
+                            text: "Excel"
+                            size_hint_x: 0.2
                             background_color: (0.1, 0.6, 0.2, 1)
                             on_release: root.excel_aktar()
 
-                    # BAŞLIKLAR
+                    # LİSTE BAŞLIKLARI
                     BoxLayout:
                         size_hint_y: None
-                        height: 30
+                        height: dp(30)
                         canvas.before:
                             Color:
                                 rgba: 0.8, 0.8, 0.8, 1
@@ -430,43 +482,67 @@ KV = """
                                 pos: self.pos
                                 size: self.size
                         Label:
-                            text: "Tarih"
+                            text: "Detay"
                             color: 0,0,0,1
-                            size_hint_x: 0.25
-                        Label:
-                            text: "Tür"
-                            color: 0,0,0,1
-                            size_hint_x: 0.25
-                        Label:
-                            text: "Kategori"
-                            color: 0,0,0,1
-                            size_hint_x: 0.25
+                            size_hint_x: 0.6
                         Label:
                             text: "Tutar"
                             color: 0,0,0,1
-                            size_hint_x: 0.25
+                            size_hint_x: 0.3
                         Label:
-                            text: "İşlem"
-                            color: 0,0,0,1
-                            size_hint_x: 0.25
+                            text: ""
+                            size_hint_x: None
+                            width: dp(50)
                     
                     # LİSTE
                     RecycleView:
                         id: rv_liste
                         viewclass: 'IslemRow'
                         RecycleBoxLayout:
-                            default_size: None, dp(40)
+                            default_size: None, dp(60)
                             default_size_hint: 1, None
                             size_hint_y: None
                             height: self.minimum_height
                             orientation: 'vertical'
+                            spacing: dp(2)
+
+        # --- ALT MENÜ (NAVBAR) ---
+        BoxLayout:
+            orientation: 'horizontal'
+            size_hint_y: None
+            height: dp(60)
+            canvas.before:
+                Color:
+                    rgba: (0.26, 0.37, 0.52, 1)
+                Rectangle:
+                    pos: self.pos
+                    size: self.size
+            
+            Button:
+                text: "📊\\nÖzet"
+                halign: 'center'
+                background_normal: ''
+                background_color: (0.26, 0.37, 0.52, 1)
+                on_release: root.sayfa_degis('dashboard')
+            Button:
+                text: "➕\\nEkle"
+                halign: 'center'
+                background_normal: ''
+                background_color: (0.26, 0.37, 0.52, 1)
+                on_release: root.sayfa_degis('ekle')
+            Button:
+                text: "📄\\nRapor"
+                halign: 'center'
+                background_normal: ''
+                background_color: (0.26, 0.37, 0.52, 1)
+                on_release: root.sayfa_degis('rapor')
 
 <InfoCard@BoxLayout>:
     orientation: 'vertical'
     baslik: ""
     deger: ""
     renk: (1,1,1,1)
-    padding: 10
+    padding: dp(10)
     canvas.before:
         Color:
             rgba: 1, 1, 1, 1
@@ -477,12 +553,12 @@ KV = """
             rgba: root.renk
         Rectangle:
             pos: self.pos
-            size: 5, self.height
+            size: dp(5), self.height
             
     Label:
         text: root.baslik
         color: 0.5, 0.5, 0.5, 1
-        font_size: '20sp'
+        font_size: '14sp'
         halign: 'left'
         text_size: self.size
     Label:
@@ -499,26 +575,29 @@ KV = """
     oran: 0
     renk: (0.2, 0.2, 0.2, 1)
     size_hint_y: None
-    height: 30
+    height: dp(40)
     Label:
         text: root.kategori
-        size_hint_x: 0.25
+        size_hint_x: 0.3
         color: 0,0,0,1
         halign: 'right'
         valign: 'middle'
         text_size: self.size
+        font_size: '13sp'
     BoxLayout:
-        size_hint_x: 0.25
-        padding: [10, 5, 10, 5]
+        size_hint_x: 0.5
+        padding: [10, 10, 10, 10]
         canvas:
             Color:
                 rgba: root.renk
             Rectangle:
-                pos: self.pos[0] + 10, self.pos[1] + 5
-                size: (self.width * root.oran) - 20, self.height - 10
-        Label:
-            text: root.tutar
-            pos: self.pos[0] + 20, self.pos[1]
+                pos: self.pos[0] + 10, self.pos[1] + 10
+                size: (self.width * root.oran), self.height - 20
+    Label:
+        text: root.tutar
+        size_hint_x: 0.2
+        color: 0,0,0,1
+        font_size: '13sp'
 """
 
 # --- YARDIMCI SINIFLAR ---
@@ -541,7 +620,6 @@ class IslemRow(BoxLayout, RecycleView):
     index = 0
 
     def sil_tetikle(self):
-        # Callback to MainScreen via App
         App.get_running_app().root.get_screen('main').islem_sil(self.id)
 
 class LoginScreen(Screen):
@@ -552,19 +630,25 @@ class LoginScreen(Screen):
         kadi = self.ids.kadi.text
         sifre = self.ids.sifre.text
         
+        # İlk çalışmada tablo oluşturmayı garantiye al
         conn = self.db_baglan()
         cur = conn.cursor()
         cur.execute("CREATE TABLE IF NOT EXISTS kullanicilar (id INTEGER PRIMARY KEY, kadi TEXT UNIQUE, sifre TEXT)")
+        # Varsayılan admin yoksa oluştur (Test için kolaylık)
+        cur.execute("SELECT count(*) FROM kullanicilar")
+        if cur.fetchone()[0] == 0:
+            cur.execute("INSERT INTO kullanicilar (kadi, sifre) VALUES ('admin', '1234')")
+            conn.commit()
+            
         cur.execute("SELECT * FROM kullanicilar WHERE kadi=? AND sifre=?", (kadi, sifre))
         user = cur.fetchone()
         conn.close()
         
         if user:
             self.manager.current = 'main'
-            # Verileri yükle
             self.manager.get_screen('main').dashboard_guncelle()
         else:
-            show_popup("Hata", "Kullanıcı adı veya şifre yanlış!")
+            show_popup("Hata", "Kullanıcı adı veya şifre yanlış!\n(Varsayılan: admin / 1234)")
 
     def kayit_ol(self):
         kadi = self.ids.kadi.text
@@ -586,10 +670,10 @@ class LoginScreen(Screen):
             conn.close()
 
 class MainScreen(Screen):
-    doviz_usd = StringProperty("USD: ...")
-    doviz_eur = StringProperty("EUR: ...")
-    doviz_altin = StringProperty("ALTIN: ...")
-    doviz_gumus = StringProperty("Gümüş:...")
+    doviz_usd = StringProperty("$: ...")
+    doviz_eur = StringProperty("€: ...")
+    doviz_altin = StringProperty("Au: ...")
+    doviz_gumus = StringProperty("Ag: ...")
     
     txt_net = StringProperty("0.00 ₺")
     txt_gelir = StringProperty("0.00 ₺")
@@ -598,14 +682,14 @@ class MainScreen(Screen):
     renk_durum = ListProperty([0,0,0,1])
 
     def __init__(self, **kwargs):
-        Clock.schedule_once(lambda dt: threading.Thread(
-        target=self.doviz_motoru, daemon=True
-        ).start(), 1)
-
         super().__init__(**kwargs)
         self.calisiyor = True
+        # UI oluşturulduktan biraz sonra başlat
+        Clock.schedule_once(self.baslat, 1)
+
+    def baslat(self, dt):
         self.veritabani_kur()
-        self.tur_degisti("Gelir") # Default kategori yükle
+        self.tur_degisti("Gider")
         threading.Thread(target=self.doviz_motoru, daemon=True).start()
 
     def veritabani_kur(self):
@@ -627,6 +711,7 @@ class MainScreen(Screen):
             )
         """)
         self.conn.commit()
+        self.dashboard_guncelle()
 
     def bugun_tarih(self):
         return datetime.now().strftime("%d/%m/%Y")
@@ -642,12 +727,14 @@ class MainScreen(Screen):
     def tur_degisti(self, tur_degeri):
         sp_kat = self.ids.sp_kat
         if tur_degeri == "Gelir":
-            sp_kat.values = ["Maaş", "Satış", "Ek Gelir"]
+            sp_kat.values = ["Maaş", "Satış", "Ek Gelir", "Yatırım"]
         elif tur_degeri == "Gider":
-            sp_kat.values = ["Market", "Kira", "Fatura", "Eğlence", "Ulaşım"]
+            sp_kat.values = ["Market", "Kira", "Fatura", "Eğlence", "Ulaşım", "Giyim", "Sağlık"]
         else:
-            sp_kat.values = ["Şahıs", "Banka"]
-        sp_kat.text = sp_kat.values[0] if sp_kat.values else ""
+            sp_kat.values = ["Şahıs", "Banka", "Diğer"]
+        
+        if sp_kat.values:
+            sp_kat.text = sp_kat.values[0]
 
     def kaydet(self):
         tur = self.ids.sp_tur.text
@@ -659,7 +746,7 @@ class MainScreen(Screen):
         try:
             tutar = float(tutar_str)
         except ValueError:
-            show_popup("Hata", "Tutar sayı olmalıdır.")
+            show_popup("Hata", "Tutar geçerli bir sayı olmalıdır.")
             return
 
         self.cursor.execute("""
@@ -669,13 +756,11 @@ class MainScreen(Screen):
         self.conn.commit()
         
         show_popup("Başarılı", "İşlem Kaydedildi.")
-        # Formu temizle
         self.ids.ti_tutar.text = ""
         self.ids.ti_desc.text = ""
         self.sayfa_degis('dashboard')
 
     def dashboard_guncelle(self):
-        # SQL Toplamlar
         self.cursor.execute("SELECT SUM(tutar) FROM islemler WHERE tur='Gelir'")
         res = self.cursor.fetchone()[0]
         gelir = res if res else 0.0
@@ -691,13 +776,12 @@ class MainScreen(Screen):
         self.txt_net = f"{net:,.2f} ₺"
 
         if net >= 0:
-            self.txt_durum = "Durum İyi: Gelir Fazlası"
+            self.txt_durum = "Durum İyi"
             self.renk_durum = RENK_YESIL
         else:
-            self.txt_durum = "Dikkat: Gider Fazlası"
+            self.txt_durum = "Dikkat: Eksi Bakiye"
             self.renk_durum = RENK_KIRMIZI
 
-        # Grafik (ProgressBar benzeri) oluştur
         self.grafik_ciz(gider)
 
     def grafik_ciz(self, toplam_gider):
@@ -707,17 +791,14 @@ class MainScreen(Screen):
         self.cursor.execute("SELECT kategori, SUM(tutar) FROM islemler WHERE tur='Gider' GROUP BY kategori ORDER BY SUM(tutar) DESC LIMIT 5")
         rows = self.cursor.fetchall()
         
-        # KV dosyasındaki dinamik class'ı import etmeye gerek yok, Factory ile otomatik
         from kivy.factory import Factory
-        
-        colors = [RENK_MAVI, RENK_YESIL,RENK_TURUNCU, RENK_KIRMIZI, (0.5, 0, 0.5, 1)]
+        colors = [RENK_MAVI, RENK_YESIL, RENK_TURUNCU, RENK_KIRMIZI, (0.5, 0, 0.5, 1)]
         
         for i, (kat, tutar) in enumerate(rows):
             oran = (tutar / toplam_gider) if toplam_gider > 0 else 0
-            # BarChartItem KV stringinde tanımlandı
             bar = Factory.BarChartItem()
             bar.kategori = kat
-            bar.tutar = f"{tutar:.0f} ₺"
+            bar.tutar = f"{tutar:.0f}"
             bar.oran = oran
             bar.renk = colors[i % len(colors)]
             chart_area.add_widget(bar)
@@ -731,7 +812,6 @@ class MainScreen(Screen):
         renk_map = {"Gelir": RENK_YESIL, "Gider": RENK_KIRMIZI, "Borç": RENK_MAVI}
         
         for i, r in enumerate(rows):
-            # Arama filtresi
             full_str = f"{r[1]} {r[2]} {r[3]}".lower()
             if keyword in full_str:
                 data_list.append({
@@ -747,39 +827,39 @@ class MainScreen(Screen):
         self.ids.rv_liste.data = data_list
 
     def islem_sil(self, islem_id):
-        # RecycleView içindeki butondan çağrılır
-        # Emin misin pop-up'ı yapılabilir ama basite indirgiyoruz
         self.cursor.execute("DELETE FROM islemler WHERE id=?", (islem_id,))
         self.conn.commit()
         self.arama_yap()
-        show_popup("Bilgi", "Kayıt Silindi.")
+        # Popup'a gerek yok, liste güncellensin yeter
 
     def excel_aktar(self):
+        # Android'de Download klasörüne kaydetmeye çalış
         path = "finans_raporu.csv"
+        if IS_ANDROID:
+            path = os.path.join(app_storage_path(), "finans_raporu.csv")
+            
         try:
             with open(path, 'w', newline='', encoding='utf-8-sig') as f:
                 w = csv.writer(f, delimiter=';')
                 w.writerow(["ID", "Tarih", "Tür", "Kategori", "Tutar", "Açıklama"])
                 self.cursor.execute("SELECT id, tarih, tur, kategori, tutar, aciklama FROM islemler")
                 w.writerows(self.cursor.fetchall())
-            show_popup("Başarılı", f"Rapor oluşturuldu:\n{os.path.abspath(path)}")
+            show_popup("Başarılı", f"Dosya kaydedildi:\n{path}")
         except Exception as e:
             show_popup("Hata", str(e))
 
-    # --- ADMIN ---
     def admin_popup_ac(self):
-        # Basit bir admin popup
         content = BoxLayout(orientation='vertical', padding=10, spacing=10)
-        t_user = TextInput(hint_text="Kullanıcı Adı", multiline=False)
-        t_pass = TextInput(hint_text="Şifre", password=True, multiline=False)
-        btn = Button(text="Giriş", size_hint_y=None, height=40)
+        t_user = TextInput(hint_text="Kullanıcı Adı", multiline=False, size_hint_y=None, height=dp(40))
+        t_pass = TextInput(hint_text="Şifre", password=True, multiline=False, size_hint_y=None, height=dp(40))
+        btn = Button(text="Doğrula", size_hint_y=None, height=dp(40), background_color=RENK_MAVI)
         
-        popup = Popup(title="Yönetici Girişi", content=content, size_hint=(None, None), size=(300, 200))
+        popup = Popup(title="Yönetici", content=content, size_hint=(0.8, 0.4))
         
         def check(instance):
-            if t_user.text == "sherlockduino" and t_pass.text == "571453":
+            if t_user.text == "admin" and t_pass.text == "1234":
                 popup.dismiss()
-                show_popup("Admin Paneli", "Tebrikler! Admin yetkisi doğrulandı.\n(Buraya admin fonksiyonları eklenebilir)")
+                show_popup("Admin", "Giriş başarılı.")
             else:
                 show_popup("Hata", "Yetkisiz Erişim")
 
@@ -789,48 +869,41 @@ class MainScreen(Screen):
         content.add_widget(btn)
         popup.open()
 
-    # --- DÖVİZ MOTORU ---
     def doviz_motoru(self):
-        headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/xml"
-        }
+        # Hata almamak için loop içinde
         while self.calisiyor:
             try:
-                # --- USD ve EUR (TCMB) ---
-                r_xml = requests.get("https://www.tcmb.gov.tr/kurlar/today.xml", timeout=10)
+                # TCMB
+                r_xml = requests.get("https://www.tcmb.gov.tr/kurlar/today.xml", timeout=5)
                 tree = ET.fromstring(r_xml.content)
                 usd = tree.find("./Currency[@CurrencyCode='USD']/ForexSelling").text
                 eur = tree.find("./Currency[@CurrencyCode='EUR']/ForexSelling").text
                 
-                # --- ALTIN ve GÜMÜŞ (GenelPara API) ---
-                # Bu kaynak genelde daha hızlıdır ve kesilmez.
-                r_json = requests.get("https://finans.truncgil.com/v4/today.json", timeout=10)
+                # Truncgil API (Daha kararlı)
+                r_json = requests.get("https://finans.truncgil.com/v4/today.json", timeout=5)
                 data = r_json.json()
-                
-                # GenelPara'da anahtarlar farklıdır:
-                # GA = Gram Altın, GAG = Gümüş
                 altin = data.get("GRA", {}).get("Selling", "0")
                 gumus = data.get("GUMUS", {}).get("Selling", "0")
 
                 self.ui_doviz_guncelle(usd, eur, altin, gumus)
-            
-            except Exception as e:
-                print("Veri çekilemedi, tekrar deneniyor...", e)
+            except:
+                pass # Bağlantı hatası olursa sessizce bekle
             
             time.sleep(60)
 
-    # 3. GÜNCELLEME FONKSİYONUNA GÜMÜŞ'Ü EKLE
     @mainthread
     def ui_doviz_guncelle(self, usd, eur, altin, gumus):
-        self.doviz_usd = f"USD: {usd} ₺"
-        self.doviz_eur = f"EUR: {eur} ₺"
-        self.doviz_altin = f"Altın: {altin} ₺"
-        self.doviz_gumus = f"Gümüş: {gumus} ₺"
+        self.doviz_usd = f"$ {usd}"
+        self.doviz_eur = f"€ {eur}"
+        self.doviz_altin = f"Au {altin}"
+        self.doviz_gumus = f"Ag {gumus}"
+
+    def on_stop(self):
+        self.calisiyor = False
 
 class FinansApp(App):
     def build(self):
-        self.title = "Ultimate ERP v19 - Kivy Edition"
+        self.title = "Ultimate ERP"
         Builder.load_string(KV)
         sm = ScreenManager()
         sm.add_widget(LoginScreen(name='login'))
@@ -838,5 +911,4 @@ class FinansApp(App):
         return sm
 
 if __name__ == "__main__":
-
     FinansApp().run()
