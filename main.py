@@ -1,6 +1,5 @@
 import sqlite3
 import csv
-import shutil
 import threading
 import time
 import requests
@@ -8,18 +7,8 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import sys
 import os
-from android.permissions import request_permissions, Permission
 
-# İzinleri iste
-request_permissions([
-    Permission.INTERNET,
-    Permission.READ_EXTERNAL_STORAGE,
-    Permission.WRITE_EXTERNAL_STORAGE
-])
-
-if not hasattr(sys, 'getandroidapilevel'):
-    os.environ['KIVY_GL_BACKEND'] = 'angle_sdl2'
-
+# --- GEREKLİ KİVY KÜTÜPHANELERİ ---
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
@@ -29,22 +18,25 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.textinput import TextInput
 from kivy.uix.recycleview import RecycleView
-from kivy.properties import BooleanProperty, ListProperty, StringProperty
+from kivy.properties import ListProperty, StringProperty
 from kivy.clock import Clock, mainthread
 from kivy.core.window import Window
 from kivy.utils import platform
-from android.storage import app_storage_path
 
+# Platform kontrolü (Android mi PC mi?)
 IS_ANDROID = platform == "android"
-# Android'de yazılabilir alan için yol
-if IS_ANDROID:
-    storage_path = app_storage_path()
-    DB_ADI = os.path.join(storage_path, "finans_ultimate_v19.db")
-else:
-    DB_ADI = "finans_ultimate_v19.db"
+
+# --- VERİTABANI YOLU AYARLAMA ---
+# Veritabanı yolunu global değil, dinamik belirleyeceğiz
+def get_db_path():
+    if IS_ANDROID:
+        from android.storage import app_storage_path
+        storage_path = app_storage_path()
+        return os.path.join(storage_path, "finans_ultimate_v19.db")
+    else:
+        return "finans_ultimate_v19.db"
 
 # --- AYARLAR ---
-RENK_SIDEBAR = (0.26, 0.37, 0.52, 1)  
 RENK_BG = (0.95, 0.96, 0.96, 1)      
 RENK_MAVI = (0.23, 0.51, 0.96, 1)    
 RENK_YESIL = (0.06, 0.72, 0.50, 1)   
@@ -72,6 +64,7 @@ KV = """
             height: self.texture_size[1] + 20
             halign: 'center'
             valign: 'middle'
+            color: 1, 1, 1, 1
         Button:
             text: "Tamam"
             size_hint_y: None
@@ -79,7 +72,6 @@ KV = """
             background_color: (0.23, 0.51, 0.96, 1)
             on_release: root.dismiss()
 
-# --- TABLO SATIR GÖRÜNÜMÜ ---
 <IslemRow>:
     orientation: 'horizontal'
     size_hint_y: None
@@ -130,7 +122,6 @@ KV = """
         background_color: (0.9, 0.2, 0.2, 1)
         on_release: root.sil_tetikle()
 
-# --- GİRİŞ EKRANI ---
 <LoginScreen>:
     BoxLayout:
         orientation: 'vertical'
@@ -143,7 +134,7 @@ KV = """
                 pos: self.pos
                 size: self.size
         
-        Widget: # Üst boşluk
+        Widget: 
             size_hint_y: 0.2
 
         Label:
@@ -160,6 +151,7 @@ KV = """
             size_hint_y: None
             height: dp(50)
             padding_y: [dp(15), dp(15)]
+            write_tab: False
             
         TextInput:
             id: sifre
@@ -169,6 +161,7 @@ KV = """
             size_hint_y: None
             height: dp(50)
             padding_y: [dp(15), dp(15)]
+            write_tab: False
             
         Button:
             text: "GİRİŞ YAP"
@@ -186,14 +179,12 @@ KV = """
             bold: True
             on_release: root.kayit_ol()
             
-        Widget: # Alt boşluk
+        Widget:
 
-# --- ANA UYGULAMA EKRANI ---
 <MainScreen>:
     BoxLayout:
-        orientation: 'vertical' # DİKEY YERLEŞİM (MOBİL İÇİN KRİTİK)
+        orientation: 'vertical'
         
-        # --- ÜST BİLGİ ÇUBUĞU (HEADER) ---
         BoxLayout:
             orientation: 'vertical'
             size_hint_y: None
@@ -205,7 +196,6 @@ KV = """
                     pos: self.pos
                     size: self.size
             
-            # Başlık ve Admin Butonu
             BoxLayout:
                 size_hint_y: 0.5
                 padding: [10, 0]
@@ -230,7 +220,6 @@ KV = """
                     background_color: 0,0,0,0
                     on_release: app.stop()
 
-            # Döviz Kayan Yazı veya Grid
             GridLayout:
                 cols: 4
                 size_hint_y: 0.5
@@ -254,11 +243,9 @@ KV = """
                     text: root.doviz_gumus
                     font_size: '12sp'
 
-        # --- İÇERİK ALANI (ORTA KISIM) ---
         ScreenManager:
             id: sm_content
             
-            # DASHBOARD
             Screen:
                 name: 'dashboard'
                 ScrollView:
@@ -280,12 +267,11 @@ KV = """
                             halign: 'left'
                             text_size: self.size
 
-                        # KARTLAR (Grid yapısında)
                         GridLayout:
                             cols: 2
                             spacing: dp(10)
                             size_hint_y: None
-                            height: dp(180) # Kartların toplam yüksekliği
+                            height: dp(180)
                             
                             InfoCard:
                                 baslik: "NET DURUM"
@@ -317,7 +303,6 @@ KV = """
                                     halign: 'center'
                                     valign: 'middle'
 
-                        # HARCAMA DAĞILIMI
                         Label:
                             text: "Harcama Dağılımı (Top 5)"
                             color: 0.3, 0.3, 0.3, 1
@@ -333,7 +318,6 @@ KV = """
                             height: self.minimum_height
                             spacing: dp(5)
 
-            # İŞLEM EKLEME SAYFASI
             Screen:
                 name: 'ekle'
                 ScrollView:
@@ -400,6 +384,7 @@ KV = """
                             hint_text: "0.00"
                             size_hint_y: None
                             height: dp(50)
+                            write_tab: False
                             
                         Label:
                             text: "Tarih (GG/AA/YYYY)"
@@ -415,6 +400,7 @@ KV = """
                             multiline: False
                             size_hint_y: None
                             height: dp(50)
+                            write_tab: False
                             
                         Label:
                             text: "Açıklama"
@@ -430,6 +416,7 @@ KV = """
                             hint_text: "Opsiyonel"
                             size_hint_y: None
                             height: dp(50)
+                            write_tab: False
                         
                         Button:
                             text: "KAYDET"
@@ -439,11 +426,10 @@ KV = """
                             bold: True
                             on_release: root.kaydet()
                         
-                        Widget: # Scroll için ekstra boşluk
+                        Widget: 
                             size_hint_y: None
                             height: dp(100)
 
-            # RAPOR SAYFASI
             Screen:
                 name: 'rapor'
                 BoxLayout:
@@ -471,7 +457,6 @@ KV = """
                             background_color: (0.1, 0.6, 0.2, 1)
                             on_release: root.excel_aktar()
 
-                    # LİSTE BAŞLIKLARI
                     BoxLayout:
                         size_hint_y: None
                         height: dp(30)
@@ -494,7 +479,6 @@ KV = """
                             size_hint_x: None
                             width: dp(50)
                     
-                    # LİSTE
                     RecycleView:
                         id: rv_liste
                         viewclass: 'IslemRow'
@@ -506,7 +490,6 @@ KV = """
                             orientation: 'vertical'
                             spacing: dp(2)
 
-        # --- ALT MENÜ (NAVBAR) ---
         BoxLayout:
             orientation: 'horizontal'
             size_hint_y: None
@@ -600,8 +583,6 @@ KV = """
         font_size: '13sp'
 """
 
-# --- YARDIMCI SINIFLAR ---
-
 class CustomPopup(Popup):
     title_text = StringProperty("")
     message = StringProperty("")
@@ -624,17 +605,18 @@ class IslemRow(BoxLayout, RecycleView):
 
 class LoginScreen(Screen):
     def db_baglan(self):
-        return sqlite3.connect(DB_ADI)
+        # Hata önleyici: DB yolunu her seferinde taze al
+        return sqlite3.connect(get_db_path())
 
     def giris_yap(self):
         kadi = self.ids.kadi.text
         sifre = self.ids.sifre.text
         
-        # İlk çalışmada tablo oluşturmayı garantiye al
         conn = self.db_baglan()
         cur = conn.cursor()
         cur.execute("CREATE TABLE IF NOT EXISTS kullanicilar (id INTEGER PRIMARY KEY, kadi TEXT UNIQUE, sifre TEXT)")
-        # Varsayılan admin yoksa oluştur (Test için kolaylık)
+        
+        # Test kullanıcısı oluştur (İlk açılış için)
         cur.execute("SELECT count(*) FROM kullanicilar")
         if cur.fetchone()[0] == 0:
             cur.execute("INSERT INTO kullanicilar (kadi, sifre) VALUES ('admin', '1234')")
@@ -648,7 +630,7 @@ class LoginScreen(Screen):
             self.manager.current = 'main'
             self.manager.get_screen('main').dashboard_guncelle()
         else:
-            show_popup("Hata", "Kullanıcı adı veya şifre yanlış!\n(Varsayılan: admin / 1234)")
+            show_popup("Hata", "Kullanıcı adı veya şifre yanlış!\n(Default: admin / 1234)")
 
     def kayit_ol(self):
         kadi = self.ids.kadi.text
@@ -684,7 +666,7 @@ class MainScreen(Screen):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.calisiyor = True
-        # UI oluşturulduktan biraz sonra başlat
+        # Hemen başlatma, UI çizilince başlat
         Clock.schedule_once(self.baslat, 1)
 
     def baslat(self, dt):
@@ -693,7 +675,7 @@ class MainScreen(Screen):
         threading.Thread(target=self.doviz_motoru, daemon=True).start()
 
     def veritabani_kur(self):
-        self.conn = sqlite3.connect(DB_ADI, check_same_thread=False)
+        self.conn = sqlite3.connect(get_db_path(), check_same_thread=False)
         self.cursor = self.conn.cursor()
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS islemler (
@@ -723,7 +705,6 @@ class MainScreen(Screen):
         elif sayfa_adi == 'rapor':
             self.arama_yap()
 
-    # --- CRUD İŞLEMLERİ ---
     def tur_degisti(self, tur_degeri):
         sp_kat = self.ids.sp_kat
         if tur_degeri == "Gelir":
@@ -761,28 +742,31 @@ class MainScreen(Screen):
         self.sayfa_degis('dashboard')
 
     def dashboard_guncelle(self):
-        self.cursor.execute("SELECT SUM(tutar) FROM islemler WHERE tur='Gelir'")
-        res = self.cursor.fetchone()[0]
-        gelir = res if res else 0.0
+        try:
+            self.cursor.execute("SELECT SUM(tutar) FROM islemler WHERE tur='Gelir'")
+            res = self.cursor.fetchone()[0]
+            gelir = res if res else 0.0
 
-        self.cursor.execute("SELECT SUM(tutar) FROM islemler WHERE tur='Gider'")
-        res = self.cursor.fetchone()[0]
-        gider = res if res else 0.0
+            self.cursor.execute("SELECT SUM(tutar) FROM islemler WHERE tur='Gider'")
+            res = self.cursor.fetchone()[0]
+            gider = res if res else 0.0
 
-        net = gelir - gider
+            net = gelir - gider
 
-        self.txt_gelir = f"+{gelir:,.2f} ₺"
-        self.txt_gider = f"-{gider:,.2f} ₺"
-        self.txt_net = f"{net:,.2f} ₺"
+            self.txt_gelir = f"+{gelir:,.2f} ₺"
+            self.txt_gider = f"-{gider:,.2f} ₺"
+            self.txt_net = f"{net:,.2f} ₺"
 
-        if net >= 0:
-            self.txt_durum = "Durum İyi"
-            self.renk_durum = RENK_YESIL
-        else:
-            self.txt_durum = "Dikkat: Eksi Bakiye"
-            self.renk_durum = RENK_KIRMIZI
+            if net >= 0:
+                self.txt_durum = "Durum İyi"
+                self.renk_durum = RENK_YESIL
+            else:
+                self.txt_durum = "Dikkat: Eksi Bakiye"
+                self.renk_durum = RENK_KIRMIZI
 
-        self.grafik_ciz(gider)
+            self.grafik_ciz(gider)
+        except Exception as e:
+            print("Dashboard hata:", e)
 
     def grafik_ciz(self, toplam_gider):
         chart_area = self.ids.chart_area
@@ -830,12 +814,11 @@ class MainScreen(Screen):
         self.cursor.execute("DELETE FROM islemler WHERE id=?", (islem_id,))
         self.conn.commit()
         self.arama_yap()
-        # Popup'a gerek yok, liste güncellensin yeter
 
     def excel_aktar(self):
-        # Android'de Download klasörüne kaydetmeye çalış
         path = "finans_raporu.csv"
         if IS_ANDROID:
+            from android.storage import app_storage_path
             path = os.path.join(app_storage_path(), "finans_raporu.csv")
             
         try:
@@ -870,24 +853,24 @@ class MainScreen(Screen):
         popup.open()
 
     def doviz_motoru(self):
-        # Hata almamak için loop içinde
         while self.calisiyor:
             try:
-                # TCMB
+                # TCMB ve API'den veri çekme (SSL GEREKTİRİR)
                 r_xml = requests.get("https://www.tcmb.gov.tr/kurlar/today.xml", timeout=5)
                 tree = ET.fromstring(r_xml.content)
                 usd = tree.find("./Currency[@CurrencyCode='USD']/ForexSelling").text
                 eur = tree.find("./Currency[@CurrencyCode='EUR']/ForexSelling").text
                 
-                # Truncgil API (Daha kararlı)
                 r_json = requests.get("https://finans.truncgil.com/v4/today.json", timeout=5)
                 data = r_json.json()
                 altin = data.get("GRA", {}).get("Selling", "0")
                 gumus = data.get("GUMUS", {}).get("Selling", "0")
 
                 self.ui_doviz_guncelle(usd, eur, altin, gumus)
-            except:
-                pass # Bağlantı hatası olursa sessizce bekle
+            except Exception as e:
+                # Hata olsa bile programı çökertme, sadece bekle
+                print("Doviz hatasi:", e)
+                pass
             
             time.sleep(60)
 
@@ -909,6 +892,16 @@ class FinansApp(App):
         sm.add_widget(LoginScreen(name='login'))
         sm.add_widget(MainScreen(name='main'))
         return sm
+
+    def on_start(self):
+        # KRİTİK DÜZELTME: İzinleri uygulama açıldıktan SONRA iste
+        if IS_ANDROID:
+            from android.permissions import request_permissions, Permission
+            request_permissions([
+                Permission.INTERNET,
+                Permission.READ_EXTERNAL_STORAGE,
+                Permission.WRITE_EXTERNAL_STORAGE
+            ])
 
 if __name__ == "__main__":
     FinansApp().run()
