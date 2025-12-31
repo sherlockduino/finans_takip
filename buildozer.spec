@@ -13,7 +13,8 @@ version = 0.1
 
 # GEREKLİ KÜTÜPHANELER (Çok Önemli!)
 # Kodunda 'requests' ve 'sqlite3' var. Sqlite3 standarttır ama requests eklenmeli.
-requirements = python3,kivy,requests,urllib3,chardet,idna,certifi
+# requirements satırını bununla değiştir:
+requirements = python3,kivy,requests,urllib3,chardet,idna,certifi,openssl,android
 
 # İzinler (İnternetten döviz çektiğin için INTERNET izni şart)
 android.permissions = INTERNET
@@ -31,3 +32,4 @@ android.archs = arm64-v8a
 [buildozer]
 log_level = 2
 warn_on_root = 1
+
